@@ -1,128 +1,150 @@
-// ✅ REQUIRED FOR PDF.js (THIS FIXES THE 404)
 const pdfjsLib = window['pdfjs-dist/build/pdf'];
-
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 
-// DOM
 const input = document.getElementById("fileInput");
-const display = document.getElementById("fileDisplay");
-const pageInfo = document.getElementById("pageInfo");
+const viewer = document.getElementById("viewer");
 const voiceInfo = document.getElementById("voiceInfo");
 
-// PDF state
-let pdfDoc = null;
-let currentPage = 1;
-let totalPages = 0;
-
-// Speech
-let words = [];
-let currentWordIndex = 0;
-let paused = false;
+let sentences = [];
+let currentSentence = 0;
+let speaking = false;
 
 // ---------------- FILE UPLOAD ----------------
 input.addEventListener("change", async (e) => {
   stopReading();
-  display.innerHTML = "";
+  viewer.innerHTML = "";
+  sentences = [];
+  currentSentence = 0;
 
   const file = e.target.files[0];
   if (!file) return;
 
   if (file.type === "application/pdf") {
-    loadPDF(file);
+    renderPDF(file);
+  } else if (file.type.startsWith("image")) {
+    renderImage(file);
+  } else if (file.name.endsWith(".docx")) {
+    renderDocx(file);
   } else {
-    loadText(file);
+    renderText(file);
   }
 });
 
 // ---------------- PDF ----------------
-async function loadPDF(file) {
+async function renderPDF(file) {
   const data = await file.arrayBuffer();
-  pdfDoc = await pdfjsLib.getDocument({ data }).promise;
-  totalPages = pdfDoc.numPages;
-  currentPage = 1;
-  renderPage();
+  const pdf = await pdfjsLib.getDocument({ data }).promise;
+
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const viewport = page.getViewport({ scale: 1.2 });
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+
+    viewer.appendChild(canvas);
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    const text = await page.getTextContent();
+    collectText(text.items.map(i => i.str).join(" "));
+  }
 }
 
-async function renderPage() {
-  display.innerHTML = "";
-
-  const page = await pdfDoc.getPage(currentPage);
-
-  const containerWidth = display.clientWidth;
-  const unscaled = page.getViewport({ scale: 1 });
-  const scale = containerWidth / unscaled.width;
-  const viewport = page.getViewport({ scale });
-
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-
-  canvas.width = viewport.width;
-  canvas.height = viewport.height;
-
-  display.appendChild(canvas);
-
-  await page.render({ canvasContext: ctx, viewport }).promise;
-
-  pageInfo.innerText = `Page ${currentPage} / ${totalPages}`;
+// ---------------- IMAGE ----------------
+function renderImage(file) {
+  const img = document.createElement("img");
+  img.src = URL.createObjectURL(file);
+  viewer.appendChild(img);
 }
 
-// ---------------- PAGE NAV ----------------
-function nextPage() {
-  if (!pdfDoc || currentPage >= totalPages) return;
-  currentPage++;
-  renderPage();
+// ---------------- DOCX ----------------
+async function renderDocx(file) {
+  const buffer = await file.arrayBuffer();
+  const result = await mammoth.extractRawText({ arrayBuffer: buffer });
+  renderSentences(result.value);
 }
 
-function prevPage() {
-  if (!pdfDoc || currentPage <= 1) return;
-  currentPage--;
-  renderPage();
-}
-
-// ---------------- TEXT FILE ----------------
-function loadText(file) {
+// ---------------- TEXT ----------------
+function renderText(file) {
   const reader = new FileReader();
-  reader.onload = () => {
-    display.innerText = reader.result;
-    words = reader.result.split(/\s+/);
-  };
+  reader.onload = () => renderSentences(reader.result);
   reader.readAsText(file);
 }
 
-// ---------------- VOICE ----------------
+// ---------------- TEXT PROCESSING ----------------
+function collectText(text) {
+  const parts = text.split(/(?<=[\.\,\!\?])/);
+  renderSentences(parts.join(" "));
+}
+
+function renderSentences(text) {
+  const parts = text.split(/(?<=[\.\!\?])/);
+  parts.forEach(s => {
+    if (!s.trim()) return;
+    const span = document.createElement("span");
+    span.className = "sentence";
+    span.textContent = s;
+    viewer.appendChild(span);
+    sentences.push(span);
+  });
+}
+
+// ---------------- SPEECH ----------------
 function getVoice() {
   const voices = speechSynthesis.getVoices();
   return voices.find(v => v.name.includes("Samantha")) || voices[0];
 }
 
 function startReading() {
-  if (!words.length) return;
+  if (!sentences.length) return;
+  speaking = true;
+  speakNext();
+}
 
-  stopReading();
-  paused = false;
+function speakNext() {
+  if (!speaking || currentSentence >= sentences.length) return;
 
-  const voice = getVoice();
-  voiceInfo.innerText = `🔊 Voice: ${voice.name}`;
+  const span = sentences[currentSentence];
+  highlight(span);
 
-  const text = words.join(" ");
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.voice = voice;
-  utter.rate = 0.85;
+  const utter = new SpeechSynthesisUtterance(span.textContent);
+  utter.voice = getVoice();
+  utter.rate = 0.9;
+
+  utter.onend = () => {
+    currentSentence++;
+    speakNext();
+  };
 
   speechSynthesis.speak(utter);
 }
 
 function pauseReading() {
-  paused = true;
   speechSynthesis.pause();
 }
 
 function resumeReading() {
-  paused = false;
   speechSynthesis.resume();
 }
 
 function stopReading() {
   speechSynthesis.cancel();
+  speaking = false;
+  currentSentence = 0;
+  clearHighlights();
+}
+
+// ---------------- HIGHLIGHT ----------------
+function highlight(el) {
+  clearHighlights();
+  el.classList.add("highlight");
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function clearHighlights() {
+  document.querySelectorAll(".highlight")
+    .forEach(e => e.classList.remove("highlight"));
 }

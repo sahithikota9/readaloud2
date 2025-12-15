@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Accessible PDF Reader</title>
+  <meta charset="UTF-8">
+  <title>Accessible Reader</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -10,29 +10,25 @@
 
 <h1>📖 Accessible Reader</h1>
 
-<input type="file" id="fileInput" accept=".pdf,.txt">
+<input type="file" id="fileInput" accept=".pdf,.txt,.docx,image/*">
 
 <div class="controls">
-  <button onclick="startReading()">▶️ Read</button>
+  <button onclick="startReading()">▶ Read</button>
   <button onclick="pauseReading()">⏸ Pause</button>
-  <button onclick="resumeReading()">▶️ Resume</button>
+  <button onclick="resumeReading()">▶ Resume</button>
   <button onclick="stopReading()">⏹ Stop</button>
-</div>
-
-<div class="controls">
-  <button onclick="prevPage()">⬅️ Prev</button>
-  <span id="pageInfo">Page</span>
-  <button onclick="nextPage()">Next ➡️</button>
 </div>
 
 <div id="voiceInfo"></div>
 
-<div id="fileDisplay"></div>
+<div id="viewer"></div>
 
-<!-- ✅ WORKING PDF.js CDN (NO 404) -->
+<!-- PDF.js -->
 <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 
-<script src="app.js"></script>
+<!-- Mammoth for DOCX -->
+<script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
 
+<script src="app.js"></script>
 </body>
 </html>
