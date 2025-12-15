@@ -1,4 +1,4 @@
-const pdfjsLib = window['pdfjs-dist/build/pdf'];
+const pdfjsLib = window["pdfjs-dist/build/pdf"];
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 
@@ -10,6 +10,31 @@ let sentenceElements = [];
 let currentSentenceIndex = 0;
 let speaking = false;
 
+// ---------------- VOICE HANDLING ----------------
+speechSynthesis.onvoiceschanged = () => {
+  const v = getVoice();
+  if (v) voiceInfo.innerText = `🔊 Voice: ${v.name}`;
+};
+
+function getVoice() {
+  const voices = speechSynthesis.getVoices();
+
+  const preferred = [
+    "Samantha",          // Apple
+    "Microsoft Aria",    // Windows
+    "Microsoft Jenny",
+    "Ava",
+    "Google US English Female"
+  ];
+
+  for (const name of preferred) {
+    const voice = voices.find(v => v.name.includes(name));
+    if (voice) return voice;
+  }
+
+  return voices.find(v => v.lang.startsWith("en")) || voices[0];
+}
+
 // ---------------- FILE UPLOAD ----------------
 input.addEventListener("change", async (e) => {
   stopReading();
@@ -20,15 +45,10 @@ input.addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
-  if (file.type === "application/pdf") {
-    renderPDF(file);
-  } else if (file.type.startsWith("image")) {
-    renderImage(file);
-  } else if (file.name.endsWith(".docx")) {
-    renderDocx(file);
-  } else {
-    renderText(file);
-  }
+  if (file.type === "application/pdf") renderPDF(file);
+  else if (file.type.startsWith("image")) renderImage(file);
+  else if (file.name.endsWith(".docx")) renderDocx(file);
+  else renderText(file);
 });
 
 // ---------------- PDF ----------------
@@ -84,19 +104,18 @@ function processText(text) {
     const sentenceSpan = document.createElement("span");
     sentenceSpan.className = "sentence";
 
-    const words = sentence.split(/\s+/);
-    words.forEach((word, index) => {
-      const wordSpan = document.createElement("span");
-      wordSpan.className = "word";
-      wordSpan.textContent = word + " ";
+    sentence.split(/\s+/).forEach(word => {
+      const w = document.createElement("span");
+      w.className = "word";
+      w.textContent = word + " ";
 
-      wordSpan.onclick = () => {
+      w.onclick = () => {
         stopReading();
         currentSentenceIndex = sentenceElements.indexOf(sentenceSpan);
         startReading();
       };
 
-      sentenceSpan.appendChild(wordSpan);
+      sentenceSpan.appendChild(w);
     });
 
     viewer.appendChild(sentenceSpan);
@@ -104,19 +123,10 @@ function processText(text) {
   });
 }
 
-// ---------------- VOICE ----------------
-function getVoice() {
-  const voices = speechSynthesis.getVoices();
-  return voices.find(v => v.name.includes("Samantha")) || voices[0];
-}
-
+// ---------------- SPEECH ----------------
 function startReading() {
   if (!sentenceElements.length) return;
-
   speaking = true;
-  const voice = getVoice();
-  voiceInfo.innerText = `🔊 Voice: ${voice.name}`;
-
   speakNext();
 }
 
@@ -127,9 +137,8 @@ function speakNext() {
   highlight(el);
 
   const utter = new SpeechSynthesisUtterance(el.innerText);
-
   utter.voice = getVoice();
-  utter.rate = 0.75;   // 🎧 audiobook-like speed
+  utter.rate = 0.65;   // 🎧 slower, audiobook-like
   utter.pitch = 1.0;
 
   utter.onend = () => {
@@ -140,7 +149,6 @@ function speakNext() {
   speechSynthesis.speak(utter);
 }
 
-// ---------------- CONTROLS ----------------
 function pauseReading() {
   speechSynthesis.pause();
 }

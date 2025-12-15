@@ -2,8 +2,8 @@ body {
   background: #000;
   color: #fff;
   font-family: -apple-system, BlinkMacSystemFont, Arial;
-  text-align: center;
   padding: 12px;
+  text-align: center;
 }
 
 h1 {
@@ -39,24 +39,21 @@ button {
 
 canvas, img {
   display: block;
-  margin: 10px auto;
+  margin: 12px auto;
   max-width: 100%;
 }
 
-/* Sentence container */
 .sentence {
   display: block;
   margin: 6px 0;
 }
 
-/* Individual words */
 .word {
   cursor: pointer;
   padding: 2px 3px;
   border-radius: 4px;
 }
 
-/* Highlight during speech */
 .highlight {
   background: #ffeb3b;
   color: #000;
