@@ -129,7 +129,7 @@ function speakNext() {
 
   const utter = new SpeechSynthesisUtterance(el.innerText);
   utter.voice = getVoice();
-  utter.rate = 0.65; // slower, audiobook style
+  utter.rate = 0.55; // slower, audiobook style
   utter.pitch = 1.0;
 
   utter.onend = () => {
