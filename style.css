@@ -6,9 +6,7 @@ body {
   text-align: center;
 }
 
-h1 {
-  font-size: 2rem;
-}
+h1 { font-size: 2rem; }
 
 input, button {
   font-size: 1.1rem;
@@ -23,10 +21,7 @@ button {
   border: none;
 }
 
-.hint {
-  font-size: 0.9rem;
-  color: #bbb;
-}
+.hint { font-size: 0.9rem; color: #bbb; }
 
 #viewer {
   height: 75vh;
@@ -43,10 +38,7 @@ canvas, img {
   max-width: 100%;
 }
 
-.sentence {
-  display: block;
-  margin: 6px 0;
-}
+.sentence { display: block; margin: 6px 0; }
 
 .word {
   cursor: pointer;

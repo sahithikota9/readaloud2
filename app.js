@@ -4,35 +4,20 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 
 const input = document.getElementById("fileInput");
 const viewer = document.getElementById("viewer");
-const voiceInfo = document.getElementById("voiceInfo");
-
 let sentenceElements = [];
 let currentSentenceIndex = 0;
 let speaking = false;
 
-// ---------------- VOICE HANDLING ----------------
+// ---------------- VOICES ----------------
+let voices = [];
+
 speechSynthesis.onvoiceschanged = () => {
-  const v = getVoice();
-  if (v) voiceInfo.innerText = `🔊 Voice: ${v.name}`;
+  voices = speechSynthesis.getVoices();
 };
 
+// Choose the first available female/system voice
 function getVoice() {
-  const voices = speechSynthesis.getVoices();
-
-  const preferred = [
-    "Samantha",          // Apple
-    "Microsoft Aria",    // Windows
-    "Microsoft Jenny",
-    "Ava",
-    "Google US English Female"
-  ];
-
-  for (const name of preferred) {
-    const voice = voices.find(v => v.name.includes(name));
-    if (voice) return voice;
-  }
-
-  return voices.find(v => v.lang.startsWith("en")) || voices[0];
+  return voices[0] || null;
 }
 
 // ---------------- FILE UPLOAD ----------------
@@ -94,15 +79,21 @@ function renderText(file) {
   reader.readAsText(file);
 }
 
-// ---------------- TEXT PROCESSING ----------------
+// ---------------- PROCESS TEXT ----------------
 function processText(text) {
-  const sentences = text.split(/(?<=[\.\!\?])/);
+  const abbreviations = ["Mr", "Mrs", "Ms", "Dr", "Prof", "Sr", "Jr", "St"];
+  const regex = new RegExp(
+    `(?<!\\b(?:${abbreviations.join("|")})\\.)` + 
+    `(?<=[.!?])`
+  );
+
+  const sentences = text.split(regex);
 
   sentences.forEach(sentence => {
     if (!sentence.trim()) return;
 
-    const sentenceSpan = document.createElement("span");
-    sentenceSpan.className = "sentence";
+    const s = document.createElement("span");
+    s.className = "sentence";
 
     sentence.split(/\s+/).forEach(word => {
       const w = document.createElement("span");
@@ -111,15 +102,15 @@ function processText(text) {
 
       w.onclick = () => {
         stopReading();
-        currentSentenceIndex = sentenceElements.indexOf(sentenceSpan);
+        currentSentenceIndex = sentenceElements.indexOf(s);
         startReading();
       };
 
-      sentenceSpan.appendChild(w);
+      s.appendChild(w);
     });
 
-    viewer.appendChild(sentenceSpan);
-    sentenceElements.push(sentenceSpan);
+    viewer.appendChild(s);
+    sentenceElements.push(s);
   });
 }
 
@@ -138,7 +129,7 @@ function speakNext() {
 
   const utter = new SpeechSynthesisUtterance(el.innerText);
   utter.voice = getVoice();
-  utter.rate = 0.65;   // 🎧 slower, audiobook-like
+  utter.rate = 0.65; // slower, audiobook style
   utter.pitch = 1.0;
 
   utter.onend = () => {
@@ -149,13 +140,8 @@ function speakNext() {
   speechSynthesis.speak(utter);
 }
 
-function pauseReading() {
-  speechSynthesis.pause();
-}
-
-function resumeReading() {
-  speechSynthesis.resume();
-}
+function pauseReading() { speechSynthesis.pause(); }
+function resumeReading() { speechSynthesis.resume(); }
 
 function stopReading() {
   speechSynthesis.cancel();
