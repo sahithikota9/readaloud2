@@ -1,48 +1,29 @@
-// ---------- PDF.js worker ----------
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+// ✅ REQUIRED FOR PDF.js (THIS FIXES THE 404)
+const pdfjsLib = window['pdfjs-dist/build/pdf'];
 
-// ---------- DOM elements ----------
-const fileInput = document.getElementById("fileInput");
-const fileDisplay = document.getElementById("fileDisplay");
-const voiceInfo = document.getElementById("voiceInfo");
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+
+// DOM
+const input = document.getElementById("fileInput");
+const display = document.getElementById("fileDisplay");
 const pageInfo = document.getElementById("pageInfo");
-
-let words = [];
-let currentWordIndex = 0;
-let utteranceQueue = [];
-let paused = false;
+const voiceInfo = document.getElementById("voiceInfo");
 
 // PDF state
 let pdfDoc = null;
 let currentPage = 1;
 let totalPages = 0;
-let autoContinue = true; // read across pages
 
-// ---------- VOICE SETUP ----------
-function getBestVoice() {
-  const voices = speechSynthesis.getVoices();
-  const preferred = ["Samantha", "Daniel", "Karen"];
-  for (let name of preferred) {
-    const v = voices.find(v => v.name.includes(name));
-    if (v) return v;
-  }
-  return voices[0];
-}
+// Speech
+let words = [];
+let currentWordIndex = 0;
+let paused = false;
 
-function showVoiceInfo(voice) {
-  voiceInfo.innerText = voice
-    ? `🔊 Using voice: ${voice.name}`
-    : `⚠️ No voice found`;
-}
-
-// ---------- FILE HANDLING ----------
-fileInput.addEventListener("change", handleFile);
-
-function handleFile(e) {
+// ---------------- FILE UPLOAD ----------------
+input.addEventListener("change", async (e) => {
   stopReading();
-  fileDisplay.innerHTML = "";
-  words = [];
-  currentPage = 1;
+  display.innerHTML = "";
 
   const file = e.target.files[0];
   if (!file) return;
@@ -50,129 +31,88 @@ function handleFile(e) {
   if (file.type === "application/pdf") {
     loadPDF(file);
   } else {
-    readTextFile(file);
+    loadText(file);
   }
-}
+});
 
-// ---------- PDF LOAD ----------
+// ---------------- PDF ----------------
 async function loadPDF(file) {
   const data = await file.arrayBuffer();
   pdfDoc = await pdfjsLib.getDocument({ data }).promise;
   totalPages = pdfDoc.numPages;
-  renderPDFPage(currentPage);
+  currentPage = 1;
+  renderPage();
 }
 
-// ---------- PDF PAGE RENDER ----------
-async function renderPDFPage(pageNumber) {
-  stopReading(false); // keep currentWordIndex for autoContinue
-  fileDisplay.innerHTML = "";
-  words = [];
-  currentWordIndex = 0;
+async function renderPage() {
+  display.innerHTML = "";
 
-  const page = await pdfDoc.getPage(pageNumber);
-  const viewport = page.getViewport({ scale: 1.1 });
+  const page = await pdfDoc.getPage(currentPage);
+
+  const containerWidth = display.clientWidth;
+  const unscaled = page.getViewport({ scale: 1 });
+  const scale = containerWidth / unscaled.width;
+  const viewport = page.getViewport({ scale });
 
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
+
   canvas.width = viewport.width;
   canvas.height = viewport.height;
 
-  fileDisplay.appendChild(canvas);
+  display.appendChild(canvas);
 
   await page.render({ canvasContext: ctx, viewport }).promise;
 
-  const textContent = await page.getTextContent();
-  const pageText = textContent.items.map(i => i.str).join(" ");
-  createWordLayer(pageText);
-
   pageInfo.innerText = `Page ${currentPage} / ${totalPages}`;
-
-  if (autoContinue) startReading();
 }
 
-// ---------- PAGE NAVIGATION ----------
+// ---------------- PAGE NAV ----------------
 function nextPage() {
   if (!pdfDoc || currentPage >= totalPages) return;
   currentPage++;
-  renderPDFPage(currentPage);
+  renderPage();
 }
 
 function prevPage() {
   if (!pdfDoc || currentPage <= 1) return;
   currentPage--;
-  renderPDFPage(currentPage);
+  renderPage();
 }
 
-// ---------- TEXT FILES ----------
-function readTextFile(file) {
+// ---------------- TEXT FILE ----------------
+function loadText(file) {
   const reader = new FileReader();
   reader.onload = () => {
-    createWordLayer(reader.result);
-    pageInfo.innerText = "Text File";
+    display.innerText = reader.result;
+    words = reader.result.split(/\s+/);
   };
   reader.readAsText(file);
 }
 
-// ---------- WORD LAYER ----------
-function createWordLayer(text) {
-  fileDisplay.innerHTML += "<div id='textLayer'></div>";
-  const layer = document.getElementById("textLayer");
-
-  words = text.split(/\s+/);
-
-  words.forEach((word, i) => {
-    const span = document.createElement("span");
-    span.className = "word";
-    span.innerText = word + " ";
-    span.onclick = () => {
-      stopReading();
-      currentWordIndex = i;
-      startReading();
-    };
-    layer.appendChild(span);
-  });
+// ---------------- VOICE ----------------
+function getVoice() {
+  const voices = speechSynthesis.getVoices();
+  return voices.find(v => v.name.includes("Samantha")) || voices[0];
 }
 
-// ---------- SPEECH ----------
 function startReading() {
-  stopReading(false);
+  if (!words.length) return;
+
+  stopReading();
   paused = false;
 
-  const voice = getBestVoice();
-  showVoiceInfo(voice);
+  const voice = getVoice();
+  voiceInfo.innerText = `🔊 Voice: ${voice.name}`;
 
-  utteranceQueue = [];
+  const text = words.join(" ");
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.voice = voice;
+  utter.rate = 0.85;
 
-  for (let i = currentWordIndex; i < words.length; i += 6) {
-    const chunk = words.slice(i, i + 6).join(" ");
-
-    const u = new SpeechSynthesisUtterance(chunk);
-    u.voice = voice;
-    u.rate = 0.85;
-    u.pitch = 1.0;
-
-    u.onstart = () => highlightWords(i, i + 6);
-    u.onend = () => {
-      currentWordIndex = i + 6;
-      if (currentWordIndex >= words.length && pdfDoc && currentPage < totalPages) {
-        currentPage++;
-        renderPDFPage(currentPage);
-      }
-    };
-
-    utteranceQueue.push(u);
-  }
-
-  speakNext();
+  speechSynthesis.speak(utter);
 }
 
-function speakNext() {
-  if (paused || utteranceQueue.length === 0) return;
-  speechSynthesis.speak(utteranceQueue.shift());
-  setTimeout(speakNext, 200);
-}
-
-// ---------- CONTROLS ----------
 function pauseReading() {
   paused = true;
   speechSynthesis.pause();
@@ -183,25 +123,6 @@ function resumeReading() {
   speechSynthesis.resume();
 }
 
-function stopReading(resetIndex = true) {
+function stopReading() {
   speechSynthesis.cancel();
-  utteranceQueue = [];
-  if (resetIndex) currentWordIndex = 0;
-  clearHighlights();
-}
-
-// ---------- HIGHLIGHTING ----------
-function highlightWords(start, end) {
-  clearHighlights();
-  const spans = document.querySelectorAll(".word");
-
-  for (let i = start; i < end && i < spans.length; i++) {
-    spans[i].classList.add("highlight");
-    spans[i].scrollIntoView({ block: "center" });
-  }
-}
-
-function clearHighlights() {
-  document.querySelectorAll(".highlight")
-    .forEach(el => el.classList.remove("highlight"));
 }

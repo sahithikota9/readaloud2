@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Accessible Reader</title>
+  <title>Accessible PDF Reader</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -10,7 +10,7 @@
 
 <h1>📖 Accessible Reader</h1>
 
-<input type="file" id="fileInput" accept=".pdf,.txt,.docx,image/*">
+<input type="file" id="fileInput" accept=".pdf,.txt">
 
 <div class="controls">
   <button onclick="startReading()">▶️ Read</button>
@@ -19,19 +19,19 @@
   <button onclick="stopReading()">⏹ Stop</button>
 </div>
 
-<!-- PDF PAGE CONTROLS -->
 <div class="controls">
-  <button onclick="prevPage()">⬅️ Prev Page</button>
-  <span id="pageInfo">Page 1</span>
-  <button onclick="nextPage()">Next Page ➡️</button>
+  <button onclick="prevPage()">⬅️ Prev</button>
+  <span id="pageInfo">Page</span>
+  <button onclick="nextPage()">Next ➡️</button>
 </div>
 
 <div id="voiceInfo"></div>
 
 <div id="fileDisplay"></div>
 
-<!-- PDF.js CDN -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- ✅ WORKING PDF.js CDN (NO 404) -->
+<script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+
 <script src="app.js"></script>
 
 </body>
