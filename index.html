@@ -19,14 +19,17 @@
   <button onclick="stopReading()">⏹ Stop</button>
 </div>
 
-<div id="voiceInfo"></div>
+<p class="hint">
+  👉 Tap any <b>word</b> to start reading from there
+</p>
 
+<div id="voiceInfo"></div>
 <div id="viewer"></div>
 
 <!-- PDF.js -->
 <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 
-<!-- Mammoth for DOCX -->
+<!-- DOCX support -->
 <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
 
 <script src="app.js"></script>

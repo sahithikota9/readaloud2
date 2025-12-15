@@ -6,16 +6,16 @@ const input = document.getElementById("fileInput");
 const viewer = document.getElementById("viewer");
 const voiceInfo = document.getElementById("voiceInfo");
 
-let sentences = [];
-let currentSentence = 0;
+let sentenceElements = [];
+let currentSentenceIndex = 0;
 let speaking = false;
 
 // ---------------- FILE UPLOAD ----------------
 input.addEventListener("change", async (e) => {
   stopReading();
   viewer.innerHTML = "";
-  sentences = [];
-  currentSentence = 0;
+  sentenceElements = [];
+  currentSentenceIndex = 0;
 
   const file = e.target.files[0];
   if (!file) return;
@@ -49,7 +49,7 @@ async function renderPDF(file) {
     await page.render({ canvasContext: ctx, viewport }).promise;
 
     const text = await page.getTextContent();
-    collectText(text.items.map(i => i.str).join(" "));
+    processText(text.items.map(i => i.str).join(" "));
   }
 }
 
@@ -64,64 +64,83 @@ function renderImage(file) {
 async function renderDocx(file) {
   const buffer = await file.arrayBuffer();
   const result = await mammoth.extractRawText({ arrayBuffer: buffer });
-  renderSentences(result.value);
+  processText(result.value);
 }
 
 // ---------------- TEXT ----------------
 function renderText(file) {
   const reader = new FileReader();
-  reader.onload = () => renderSentences(reader.result);
+  reader.onload = () => processText(reader.result);
   reader.readAsText(file);
 }
 
 // ---------------- TEXT PROCESSING ----------------
-function collectText(text) {
-  const parts = text.split(/(?<=[\.\,\!\?])/);
-  renderSentences(parts.join(" "));
-}
+function processText(text) {
+  const sentences = text.split(/(?<=[\.\!\?])/);
 
-function renderSentences(text) {
-  const parts = text.split(/(?<=[\.\!\?])/);
-  parts.forEach(s => {
-    if (!s.trim()) return;
-    const span = document.createElement("span");
-    span.className = "sentence";
-    span.textContent = s;
-    viewer.appendChild(span);
-    sentences.push(span);
+  sentences.forEach(sentence => {
+    if (!sentence.trim()) return;
+
+    const sentenceSpan = document.createElement("span");
+    sentenceSpan.className = "sentence";
+
+    const words = sentence.split(/\s+/);
+    words.forEach((word, index) => {
+      const wordSpan = document.createElement("span");
+      wordSpan.className = "word";
+      wordSpan.textContent = word + " ";
+
+      wordSpan.onclick = () => {
+        stopReading();
+        currentSentenceIndex = sentenceElements.indexOf(sentenceSpan);
+        startReading();
+      };
+
+      sentenceSpan.appendChild(wordSpan);
+    });
+
+    viewer.appendChild(sentenceSpan);
+    sentenceElements.push(sentenceSpan);
   });
 }
 
-// ---------------- SPEECH ----------------
+// ---------------- VOICE ----------------
 function getVoice() {
   const voices = speechSynthesis.getVoices();
   return voices.find(v => v.name.includes("Samantha")) || voices[0];
 }
 
 function startReading() {
-  if (!sentences.length) return;
+  if (!sentenceElements.length) return;
+
   speaking = true;
+  const voice = getVoice();
+  voiceInfo.innerText = `🔊 Voice: ${voice.name}`;
+
   speakNext();
 }
 
 function speakNext() {
-  if (!speaking || currentSentence >= sentences.length) return;
+  if (!speaking || currentSentenceIndex >= sentenceElements.length) return;
 
-  const span = sentences[currentSentence];
-  highlight(span);
+  const el = sentenceElements[currentSentenceIndex];
+  highlight(el);
 
-  const utter = new SpeechSynthesisUtterance(span.textContent);
+  const utter = new SpeechSynthesisUtterance(el.innerText);
+
   utter.voice = getVoice();
-  utter.rate = 0.9;
+  utter.rate = 0.75;   // 🎧 audiobook-like speed
+  utter.pitch = 1.0;
 
   utter.onend = () => {
-    currentSentence++;
+    currentSentenceIndex++;
     speakNext();
   };
 
   speechSynthesis.speak(utter);
 }
 
+// ---------------- CONTROLS ----------------
 function pauseReading() {
   speechSynthesis.pause();
 }
@@ -133,7 +152,7 @@ function resumeReading() {
 function stopReading() {
   speechSynthesis.cancel();
   speaking = false;
-  currentSentence = 0;
+  currentSentenceIndex = 0;
   clearHighlights();
 }
 

@@ -23,12 +23,18 @@ button {
   border: none;
 }
 
+.hint {
+  font-size: 0.9rem;
+  color: #bbb;
+}
+
 #viewer {
   height: 75vh;
   overflow-y: auto;
   background: #111;
-  padding: 10px;
+  padding: 14px;
   border-radius: 10px;
+  text-align: left;
 }
 
 canvas, img {
@@ -37,14 +43,22 @@ canvas, img {
   max-width: 100%;
 }
 
+/* Sentence container */
 .sentence {
   display: block;
-  padding: 6px;
-  margin: 4px 0;
+  margin: 6px 0;
 }
 
+/* Individual words */
+.word {
+  cursor: pointer;
+  padding: 2px 3px;
+  border-radius: 4px;
+}
+
+/* Highlight during speech */
 .highlight {
-  background: yellow;
-  color: black;
+  background: #ffeb3b;
+  color: #000;
   font-weight: bold;
 }
